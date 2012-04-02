@@ -20,14 +20,13 @@
 
 const int SIZE = 4;
 int NUM_THRD = 4;
+double ERROR = 0.0000001;
 
-double  A[SIZE][SIZE],  b[SIZE], x1[SIZE], x2[SIZE], x3[SIZE];
-double firstNorm;
-double secondNorm;
+double  A[SIZE][SIZE],  b[SIZE], x1[SIZE], x2[SIZE];
 
 
 void* count(void * slice);
-void* initMatrix(void * slice);
+void initMatrix();
 float random(float a, float b);
 bool errorCount();
 void printX2();
@@ -39,24 +38,12 @@ int main(int argc, char** argv) {
     int rc, i;
 
     //Init Matrix
-    for (i = 0; i < NUM_THRD; i++) {
-        thread_args[i] = i;
-        rc = pthread_create(&threads[i], NULL, initMatrix, (void *) &thread_args[i]);
-        assert(0 == rc);
-    }
+	initMatrix();
 
-    for (i = 0; i < NUM_THRD; i++) {
-        rc = pthread_join(threads[i], NULL);
-        assert(0 == rc);
-    }
-
-    do {
-		
-        for (int x = 0; x < SIZE; x++) {
-            x3[x] = x1[x];
+    while(errorCount()) {
+        for (int x = 0; x < SIZE; x++) 
             x1[x] = x2[x];
-        }
-
+        
         //Count N * x + b
         for (i = 0; i < NUM_THRD; i++) {
             thread_args[i] = i;
@@ -68,13 +55,9 @@ int main(int argc, char** argv) {
             rc = pthread_join(threads[i], NULL);
             assert(0 == rc);
         }
-
-
-
-    } while (errorCount());
+    } 
 
     printX2();
-
 
     return 0;
 }
@@ -85,16 +68,12 @@ void printX2() {
 }
 
 bool errorCount() {
-    double firstNorm = 0;
-    double secondNorm = 0;
+    double NORM = 0;
 
-    for (int i = 0; i < SIZE; i++) {
-        firstNorm += (x2[i] - x1[i])*(x2[i] - x1[i]);
-        secondNorm += (x1[i] - x3[i])*(x1[i] - x3[i]);
-    }
+    for (int i = 0; i < SIZE; i++) 
+        NORM += (x2[i] - x1[i])*(x2[i] - x1[i]);
 
-
-    if (sqrt(firstNorm) < sqrt(secondNorm))
+    if (sqrt(NORM) < ERROR)
         return false;
     else
         return true;
@@ -108,15 +87,12 @@ float random(float a, float b) {
     return a + r;
 }
 
-void * initMatrix(void * slice) {
+void  initMatrix() {
     int s;
-    s = *((int*) slice);
-    int rowStart = (s * SIZE) / NUM_THRD;
-    int rowStop = ((s + 1) * SIZE) / NUM_THRD;
 
     srand(time(NULL));
 
-    for (int i = rowStart; i < rowStop; i++) {
+    for (int i = 0; i < SIZE; i++) {
         /*for (int j = 0; j < SIZE; j++) {
             A[i][j] = 0;
             if (j == i) {
@@ -124,37 +100,33 @@ void * initMatrix(void * slice) {
                 b[i] = A[i][j];
             }
         }*/
-        x1[i] = 0;
+        x1[i] = 1;
         x2[i] = 0;
-        x3[i] = 0;
     }
 
 	
     A[0][0] = 4;
     A[0][1] = -1;
-    A[0][2] = -1;
-    A[0][3] = 0;
+    A[0][2] = -0.2;
+    A[0][3] = 2;
     A[1][0] = -1;
-    A[1][1] = 4;
+    A[1][1] = 5;
     A[1][2] = 0;
-    A[1][3] = -1;
-    A[2][0] = -1;
-    A[2][1] = 0;
-    A[2][2] = 4;
+    A[1][3] = -2;
+    A[2][0] = 0.2;
+    A[2][1] = 1;
+    A[2][2] = 10;
     A[2][3] = -1;
     A[3][0] = 0;
-    A[3][1] = -1;
+    A[3][1] = -2;
     A[3][2] = -1;
     A[3][3] = 4;
 
-    b[0] = 1;
-    b[1] = 2;
-    b[2] = 0;
-    b[3] = 1;
-	
+    b[0] = 30;
+    b[1] = 0;
+    b[2] = -10;
+    b[3] = 5;
 
-
-    return NULL;
 }
 
 void * count(void * slice) {
@@ -170,7 +142,6 @@ void * count(void * slice) {
             if (j != i) sum += A[i][j] * x1[j];
 
         x2[i] = (b[i] - sum) / A[i][i];
-
     }
 
     return NULL;
